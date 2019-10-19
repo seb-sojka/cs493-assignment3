@@ -48,14 +48,14 @@ function delete_boat(id){
 
 /* ------------- Begin Controller Functions ------------- */
 
-router.get('/', function(req, res){
+router.get('/boats', function(req, res){
     const boats = get_boats()
 	.then( (boats) => {
         res.status(200).json(boats);
     });
 });
 
-router.post('/', function(req, res){
+router.post('/boats', function(req, res){
     post_boat(req.body.name, req.body.type, req.body.length)
     .then( key => {res.status(200).send('{ "id": ' + key.id + ' }')} );
 });
