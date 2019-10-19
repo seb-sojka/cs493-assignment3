@@ -60,18 +60,18 @@ router.post('/boats', function(req, res){
     .then( key => {res.status(200).send('{ "id": ' + key.id + ' }')} );
 });
 
-router.put('/:id', function(req, res){
+router.put('/boats/:id', function(req, res){
     put_boat(req.params.id, req.body.name, req.body.type, req.body.length)
     .then(res.status(200).end());
 });
 
-router.delete('/:id', function(req, res){
+router.delete('/boats/:id', function(req, res){
     delete_boat(req.params.id).then(res.status(200).end())
 });
 
 /* ------------- End Controller Functions ------------- */
 
-app.use('/', router);
+app.use('/boats', router);
 
 // Listen to the App Engine-specified port, or 8080 otherwise
 const PORT = process.env.PORT || 8080;
