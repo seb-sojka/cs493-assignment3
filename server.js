@@ -10,7 +10,7 @@ const BOAT = "Boat";
 
 const Slip = "Slip";
 
-const router = express.Router();
+const boats = express.Router();
 
 app.use(bodyParser.json());
 
@@ -33,10 +33,10 @@ function get_boats(){
 		});
 }
 
-function put__boat(id, name, type, length){
+function patch_boat(id, name, type, length){
     const key = datastore.key([BOAT, parseInt(id,10)]);
     const boat = {"name": name, "type": type, "length": length};
-    return datastore.save({"key":key, "data":boat});
+    return datastore.update({"key":key, "data":boat}).then(() => {return key});
 }
 
 function delete_boat(id){
@@ -44,34 +44,108 @@ function delete_boat(id){
     return datastore.delete(key); 
 }
 
+function get_boat(id)
+{
+    const key = datastore.key([BOAT, parseInt(id,10)]);
+    return datastore.get(key);
+}
+
+function createJSONResp(boat, idAdd, selfAdd)
+{
+    var myJSON = boat[0];
+    myJSON.id = idAdd;
+    myJSON.self = selfAdd;
+    return myJSON;
+}
+
+function createJSONRespArray(boats, selfAdd)
+{
+    var myJSON = [];
+    for(i = 0; i < boats.length; i++)
+    {
+        myJSON[i] = boats[i];
+        myJSON[i].self = selfAdd + myJSON[i].id
+    }
+    return myJSON;
+}
+
 /* ------------- End Model Functions ------------- */
 
 /* ------------- Begin Controller Functions ------------- */
 
-router.get('/boats', function(req, res){
+boats.get('/', function(req, res){
     const boats = get_boats()
 	.then( (boats) => {
-        res.status(200).json(boats);
+        selfBase = req.protocol + '://' + req.get('host') + req.baseUrl + '/';
+
+        res.status(200).json(createJSONRespArray(boats, selfBase));
     });
 });
 
-router.post('/boats', function(req, res){
-    post_boat(req.body.name, req.body.type, req.body.length)
-    .then( key => {res.status(200).send('{ "id": ' + key.id + ' }')} );
+boats.post('/', function(req, res){
+	if(req.body.name == null || req.body.type == null || req.body.length == null)
+    {
+		res.status(400).send('{ "Error":  "The request object is missing at least one of the required attribute" }')
+    }
+   else
+    {
+        post_boat(req.body.name, req.body.type, req.body.length)
+        .then( key => {
+            const boat = get_boat(key.id).then( (boat) => {
+                self = req.protocol + '://' + req.get('host') + req.baseUrl + '/' + key.id;
+                res.status(201).json(createJSONResp(boat, key.id, self));
+            });
+        });
+    }
 });
 
-router.put('/boats/:id', function(req, res){
-    put_boat(req.params.id, req.body.name, req.body.type, req.body.length)
-    .then(res.status(200).end());
+boats.patch('/:id', function(req, res){
+    if(req.body.name == null || req.body.type == null || req.body.length == null)
+    {
+		res.status(400).json({Error:  "The request object is missing at least one of the required attribute"})
+    }
+    else
+    {
+        patch_boat(req.params.id, req.body.name, req.body.type, req.body.length)
+        .then(key => {
+            const boat = get_boat(key.id).then( (boat) => {
+                self = req.protocol + '://' + req.get('host') + req.baseUrl + '/' + key.id;
+                res.status(200).json(createJSONResp(boat, key.id, self));
+            });
+        });
+    }
 });
 
-router.delete('/boats/:id', function(req, res){
-    delete_boat(req.params.id).then(res.status(200).end())
+boats.get('/:id', function(req, res){
+    const boat = get_boat(req.params.id).then( (boat) => {
+        if(boat[0] == null)
+        {
+            res.status(404).json({Error:  "No boat with this boat_id exists"});
+        }
+        else
+        {
+            self = req.protocol + '://' + req.get('host') + req.baseUrl + '/' + req.params.id;
+            res.status(200).json(createJSONResp(boat, req.params.id, self));
+        }
+    } );
+});
+
+boats.delete('/:id', function(req, res){
+    const boat = get_boat(req.params.id).then( (boat) => {
+    if(boat[0] == null)
+    {
+        res.status(404).json({Error:  "No boat with this boat_id exists"});
+    }
+    else
+    {
+        delete_boat(req.params.id).then(res.status(200).end());
+    }
+    });
 });
 
 /* ------------- End Controller Functions ------------- */
 
-app.use('/boats', router);
+app.use('/boats', boats);
 
 // Listen to the App Engine-specified port, or 8080 otherwise
 const PORT = process.env.PORT || 8080;
